@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -5,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:timesheet_proj/login_page/trapezoid_clipper.dart';
 
 import '../pages/create_account_page.dart';
-import '../pages/timesheet_page.dart';
+import '../pages/timesheet_page.dart'; // Import TimesheetPage
 import 'colors.dart';
 
 class LoginField extends StatefulWidget {
@@ -20,28 +21,6 @@ class _LoginFieldState extends State<LoginField> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isObscure = true;
-  String? _name, _password;
-
-  void _showErrorSnackbar(String message) {
-    Get.snackbar(
-      'Error',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-      borderRadius: 8,
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    );
-
-    // Clear the text fields after showing the snackbar
-    _nameController.clear();
-    _passwordController.clear();
-  }
-
-  bool _isValidCredentials(String name, String password) {
-    return userDatabase[name] == password;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,17 +36,17 @@ class _LoginFieldState extends State<LoginField> {
                 Text(
                   'LOGIN',
                   style: GoogleFonts.lato(
-                    textStyle: TextStyle(
+                    textStyle: const TextStyle(
                       fontSize: 24.0,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Name',
+                    labelText: 'Email',
                     labelStyle: GoogleFonts.labrada(),
                     filled: true,
                     fillColor: Colors.grey[300],
@@ -78,15 +57,13 @@ class _LoginFieldState extends State<LoginField> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a name';
+                      print('Email field is empty');
+                      return 'Please enter an email';
                     }
                     return null;
                   },
-                  onSaved: (value) {
-                    _name = value;
-                  },
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _isObscure,
@@ -106,43 +83,66 @@ class _LoginFieldState extends State<LoginField> {
                       onPressed: () {
                         setState(() {
                           _isObscure = !_isObscure;
+                          print('Password visibility toggled: $_isObscure');
                         });
                       },
                     ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
+                      print('Password field is empty');
                       return 'Please enter a password';
+                    } else if (value.length < 6) {
+                      print('Password is too short');
+                      return 'Password must be at least 6 characters long';
                     }
                     return null;
                   },
-                  onSaved: (value) {
-                    _password = value;
-                  },
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      _formKey.currentState?.save();
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      print('Login form is valid');
+                      try {
+                        // Firebase login logic
+                        UserCredential userCredential = await FirebaseAuth
+                            .instance
+                            .signInWithEmailAndPassword(
+                          email: _nameController.text,
+                          password: _passwordController.text,
+                        );
+                        print(
+                            'Login successful with email: ${_nameController.text}');
 
-                      if (_isValidCredentials(_name!, _password!)) {
-                        // Navigate to the TimesheetPage using GetX
-                        Get.to(() => TimesheetPage());
-                      } else {
-                        // Show error snackbar if credentials are not valid
-                        _showErrorSnackbar('Invalid name or password');
+                        // Navigate to TimesheetPage
+                        Get.snackbar(
+                          'Success',
+                          'Logged in successfully',
+                          backgroundColor: Colors.green,
+                          colorText: Colors.white,
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
+                        Get.off(
+                            () => TimesheetPage()); // Navigate to TimesheetPage
+                      } catch (e) {
+                        print('Login failed: $e');
+                        Get.snackbar(
+                          'Error',
+                          'Login failed. Please try again',
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
                       }
                     } else {
-                      // Show error snackbar if the form is not valid
-                      _showErrorSnackbar(
-                          'Please enter valid name and password');
+                      print('Login form validation failed');
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: Colors.orange,
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
@@ -150,8 +150,8 @@ class _LoginFieldState extends State<LoginField> {
                   child: Center(
                     child: Text(
                       'Log In',
-                      style: GoogleFonts.gabarito(
-                        textStyle: TextStyle(
+                      style: GoogleFonts.lato(
+                        textStyle: const TextStyle(
                           fontSize: 18.0,
                           fontWeight: FontWeight.bold,
                         ),
@@ -159,7 +159,7 @@ class _LoginFieldState extends State<LoginField> {
                     ),
                   ),
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Padding(
                   padding: const EdgeInsets.only(left: 80),
                   child: RichText(
@@ -168,7 +168,7 @@ class _LoginFieldState extends State<LoginField> {
                         TextSpan(
                           text: "Don't have an account? ",
                           style: GoogleFonts.lato(
-                            textStyle: TextStyle(
+                            textStyle: const TextStyle(
                               fontSize: 14.0,
                               fontWeight: FontWeight.bold,
                               color: Colors.grey,
@@ -178,7 +178,7 @@ class _LoginFieldState extends State<LoginField> {
                         TextSpan(
                           text: 'Sign up',
                           style: GoogleFonts.lato(
-                            textStyle: TextStyle(
+                            textStyle: const TextStyle(
                               fontSize: 14.0,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
@@ -186,8 +186,9 @@ class _LoginFieldState extends State<LoginField> {
                           ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () {
+                              print('Navigating to sign-up page');
                               Get.to(
-                                () => CreateAccountPage(),
+                                () => const CreateAccountPage(),
                                 transition: Transition.downToUp,
                                 duration: const Duration(milliseconds: 500),
                               );
@@ -197,7 +198,7 @@ class _LoginFieldState extends State<LoginField> {
                     ),
                   ),
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
               ],
             ),
           ),
@@ -214,7 +215,7 @@ class _LoginFieldState extends State<LoginField> {
                 child: Text(
                   "@Joyfytech Pvt Ltd",
                   style: GoogleFonts.abel(
-                    textStyle: TextStyle(
+                    textStyle: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 20,

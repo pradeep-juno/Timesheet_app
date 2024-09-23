@@ -1,13 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart'; // Import GetX package
+import 'package:get/get.dart'; // Import GetX
 import 'package:google_fonts/google_fonts.dart';
+import 'package:timesheet_proj/pages/login_page.dart';
 
-import '../login_page/colors.dart';
-
-// A simple data store to hold user credentials (this is just for demonstration purposes)
-final Map<String, String> userDatabase =
-    {}; // This will hold names and passwords
+import '../login_page/colors.dart'; // Your custom color file
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -17,48 +15,77 @@ class CreateAccountPage extends StatefulWidget {
 }
 
 class _CreateAccountPageState extends State<CreateAccountPage> {
-  final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isObscure = true;
+  bool _isObscure = true; // Password visibility toggle
 
-  // Show error message
-  void _showErrorSnackbar(String message) {
-    Get.snackbar(
-      'Error',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-      borderRadius: 8,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    );
+  final FirebaseAuth _auth = FirebaseAuth.instance; // Firebase Auth instance
 
-    // Clear the text fields after showing the snackbar
-    _nameController.clear();
-    _emailController.clear();
-    _passwordController.clear();
-  }
+  Future<void> _createAccount() async {
+    print("Create Account button pressed");
+    try {
+      // Check if fields are empty
+      if (_nameController.text.isEmpty ||
+          _emailController.text.isEmpty ||
+          _passwordController.text.isEmpty) {
+        print("Fields are empty, showing error snackbar");
+        Get.snackbar(
+          'Error',
+          'Please fill all the fields',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
 
-  // Validate name format
-  bool _isValidName(String name) {
-    return RegExp(r'^[a-zA-Z]+(?: [a-zA-Z]+)+$').hasMatch(name);
-  }
+      print("Creating a new account with Firebase Auth");
+      // Create a new user with Firebase Auth
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-  // Validate email format
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        .hasMatch(email);
-  }
+      print("Account created, updating display name");
+      // Optional: Update the display name
+      await userCredential.user?.updateDisplayName(_nameController.text);
 
-  // Validate password format
-  bool _isValidPassword(String password) {
-    return password.length >= 8 &&
-        RegExp(r'[A-Za-z]').hasMatch(password) &&
-        RegExp(r'[0-9]').hasMatch(password) &&
-        RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
+      print("Account creation successful, showing success snackbar");
+      Get.snackbar(
+        'Success',
+        'Account created successfully!',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+
+      print("Navigating to LoginPage");
+      // Navigate to the login page or the next page
+      Get.off(() => const LoginPage());
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred, please try again.';
+      if (e.code == 'email-already-in-use') {
+        message = 'This email is already in use.';
+        print("Error: email already in use");
+      } else if (e.code == 'weak-password') {
+        message = 'The password provided is too weak.';
+        print("Error: weak password");
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
+        print("Error: invalid email");
+      }
+
+      print("Error occurred during account creation, showing error snackbar");
+      Get.snackbar(
+        'Error',
+        message,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   @override
@@ -95,207 +122,160 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            Text(
-                              'CREATE ACCOUNT',
-                              style: GoogleFonts.lato(
-                                textStyle: const TextStyle(
-                                  fontSize: 24.0,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                      Text(
+                        'CREATE ACCOUNT',
+                        style: GoogleFonts.lato(
+                          textStyle: const TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 50),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Name',
+                          labelStyle: GoogleFonts.labrada(),
+                          filled: true,
+                          fillColor: Colors.grey[300],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          labelStyle: GoogleFonts.labrada(),
+                          filled: true,
+                          fillColor: Colors.grey[300],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _isObscure,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          labelStyle: GoogleFonts.labrada(),
+                          filled: true,
+                          fillColor: Colors.grey[300],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide.none,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isObscure
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isObscure = !_isObscure;
+                                print("Password visibility toggled");
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      ElevatedButton(
+                        onPressed: () {
+                          print("Create Account button clicked");
+                          _createAccount(); // Call _createAccount
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.orange,
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Create Account',
+                            style: GoogleFonts.gabarito(
+                              textStyle: const TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 50),
-                            TextFormField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                labelText: 'Name',
-                                labelStyle: GoogleFonts.labrada(),
-                                filled: true,
-                                fillColor: Colors.grey[300],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null ||
-                                    value.isEmpty ||
-                                    !_isValidName(value)) {
-                                  return 'Please enter a valid name (e.g., Pradeep S)';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 20),
-                            TextFormField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                labelText: 'Email',
-                                labelStyle: GoogleFonts.labrada(),
-                                filled: true,
-                                fillColor: Colors.grey[300],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null ||
-                                    value.isEmpty ||
-                                    !_isValidEmail(value)) {
-                                  return 'Please enter a valid email';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 20),
-                            TextFormField(
-                              controller: _passwordController,
-                              obscureText: _isObscure,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                labelStyle: GoogleFonts.labrada(),
-                                filled: true,
-                                fillColor: Colors.grey[300],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  borderSide: BorderSide.none,
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _isObscure
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 80),
+                        child: RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'Have an account? ',
+                                style: GoogleFonts.lato(
+                                  textStyle: const TextStyle(
+                                    fontSize: 14.0,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _isObscure = !_isObscure;
-                                    });
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Log In',
+                                style: GoogleFonts.lato(
+                                  textStyle: const TextStyle(
+                                    fontSize: 14.0,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    print("Log In link clicked");
+                                    Get.to(() => const LoginPage());
                                   },
-                                ),
                               ),
-                              validator: (value) {
-                                if (value == null ||
-                                    value.isEmpty ||
-                                    !_isValidPassword(value)) {
-                                  return 'Password must be at least 8 characters with letters, numbers, and special characters';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 30),
-                            ElevatedButton(
-                              onPressed: () async {
-                                if (_formKey.currentState?.validate() ??
-                                    false) {
-                                  // Store user data
-                                  userDatabase[_nameController.text] =
-                                      _passwordController.text;
-
-                                  Get.snackbar(
-                                    'Success',
-                                    'Account created successfully!',
-                                    snackPosition: SnackPosition.BOTTOM,
-                                  );
-
-                                  // Clear text fields after successful account creation
-                                  _nameController.clear();
-                                  _emailController.clear();
-                                  _passwordController.clear();
-                                } else {
-                                  _showErrorSnackbar(
-                                      'Please fill in all the fields correctly.');
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.orange,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16.0),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: InkWell(
+                          onTap: () {
+                            print("Back button clicked");
+                            Get.back(); // Navigate back
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.arrow_back_ios_rounded,
+                                color: Colors.white,
                               ),
-                              child: Center(
-                                child: Text(
-                                  'Create Account',
-                                  style: GoogleFonts.gabarito(
-                                    textStyle: const TextStyle(
-                                      fontSize: 18.0,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              Text(
+                                'Back',
+                                style: GoogleFonts.lato(
+                                  textStyle: const TextStyle(
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 80),
-                              child: RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'Have an account? ',
-                                      style: GoogleFonts.lato(
-                                        textStyle: const TextStyle(
-                                          fontSize: 14.0,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'Log In',
-                                      style: GoogleFonts.lato(
-                                        textStyle: const TextStyle(
-                                          fontSize: 14.0,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                      recognizer: TapGestureRecognizer()
-                                        ..onTap = () {
-                                          Get.back();
-                                        },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 40),
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: InkWell(
-                                onTap: () {
-                                  Get.back(); // Navigate to the login page
-                                },
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.arrow_back_ios_rounded,
-                                      color: Colors.white,
-                                    ),
-                                    Text(
-                                      'Back',
-                                      style: GoogleFonts.lato(
-                                        textStyle: const TextStyle(
-                                          fontSize: 18.0,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
